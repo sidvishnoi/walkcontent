@@ -95,6 +95,12 @@ Above, `$date` is picked up from a directory name too (`2024-02-01`), and `$mtim
 go install github.com/sidvishnoi/walkcontent@latest
 ```
 
+Or, via npm (installs a prebuilt binary, no Go toolchain required):
+
+```sh
+npm install -g walkcontent
+```
+
 ## Usage
 
 ### Basic

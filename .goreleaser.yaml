@@ -20,6 +20,7 @@ builds:
 
 archives:
   - id: default
+    name_template: "walkcontent_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     formats: [tar.gz]
     format_overrides:
       - goos: windows

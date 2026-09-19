@@ -1,0 +1,7 @@
+{
+  "name": "walkcontent",
+  "version": "0.0.0",
+  "description": "A CLI to recursively walk markdown content directories, parse each file's metadata, and write a JSON map of file path to that metadata.",
+  "repository": "github:sidvishnoi/walkcontent",
+  "license": "MIT"
+}

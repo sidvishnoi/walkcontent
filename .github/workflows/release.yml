@@ -1,9 +1,7 @@
 name: Release
-
 on:
   push:
-    tags:
-      - "v*"
+    tags: ["v*"]
 
 permissions:
   contents: write
@@ -25,3 +23,21 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  npm:
+    needs: goreleaser
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: sidvishnoi/npm-publish-bin-action@main
+        with:
+          package-name: walkcontent
+          scope: '@walkcontent-cli'
+          tag: ${{ github.ref_name }}
+          package-json-template: npm/package.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          npm-token: ${{ secrets.NPM_TOKEN }}
+          provenance: 'true'
