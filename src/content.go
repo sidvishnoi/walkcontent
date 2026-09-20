@@ -13,13 +13,14 @@ var utf8BOM = []byte{0xEF, 0xBB, 0xBF}
 
 const frontmatterDelim = "---"
 
-func parseFrontmatterAndH1(r io.Reader) (map[string]any, string, error) {
+func parseFrontmatterAndH1(r io.Reader) (map[string]any, string, int, error) {
 	lines := newLineScanner(r)
 
 	line, ok := lines.next()
 	line = strings.TrimPrefix(line, string(utf8BOM))
 
 	var fm map[string]any
+	contentStart := 1
 	if ok && strings.TrimSpace(line) == frontmatterDelim {
 		var block strings.Builder
 		closed := false
@@ -37,21 +38,23 @@ func parseFrontmatterAndH1(r io.Reader) (map[string]any, string, error) {
 		if !closed {
 			// no closing delimiter: this wasn't frontmatter after all, and its first
 			// line ("---") already rules out a heading directly following it
-			return nil, "", nil
+			return nil, "", 1, nil
 		}
 		if err := yaml.Unmarshal([]byte(block.String()), &fm); err != nil {
-			return nil, "", fmt.Errorf("invalid yaml frontmatter: %w", err)
+			return nil, "", 0, fmt.Errorf("invalid yaml frontmatter: %w", err)
 		}
+		contentStart = lines.lineNo + 1
 		line, ok = lines.next()
 	}
 
 	h1, _ := scanH1(lines, line, ok)
-	return fm, h1, nil
+	return fm, h1, contentStart, nil
 }
 
 type lineScanner struct {
-	r    *bufio.Reader
-	done bool
+	r      *bufio.Reader
+	done   bool
+	lineNo int
 }
 
 func newLineScanner(r io.Reader) *lineScanner {
@@ -69,6 +72,7 @@ func (s *lineScanner) next() (string, bool) {
 			return "", false
 		}
 	}
+	s.lineNo++
 	return line, true
 }
 

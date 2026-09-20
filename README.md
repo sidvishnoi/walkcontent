@@ -7,6 +7,7 @@ The following data is extracted from each file:
 - Top-level heading, `$h1`
 - Date from file path, `$date`
 - File modification time, `$mtime`
+- Line number where content starts (after the frontmatter block, if any), `$contentStart`
 - YAML frontmatter block, flattened into key-value pairs added directly to the output
 
 ## Example
@@ -72,12 +73,14 @@ walkcontent -d content 'posts/drafts/**'
 ```json
 {
   "content/blog/2024-02-01/index.md": {
+    "$contentStart": 4,
     "$date": "2024-02-01",
     "$h1": "Second Post",
     "$mtime": 1706745600,
     "author": "Jane Doe"
   },
   "content/posts/2024-01-15-hello-world.md": {
+    "$contentStart": 4,
     "$date": "2024-01-15",
     "$h1": "Hello World",
     "$mtime": 1705320000,
@@ -87,7 +90,7 @@ walkcontent -d content 'posts/drafts/**'
 }
 ```
 
-Above, `$date` is picked up from a directory name too (`2024-02-01`), and `$mtime` reflects each file's actual modification time. `$h1` is the top-level heading in the file, and the rest of the data is frontmatter.
+Above, `$date` is picked up from a directory name too (`2024-02-01`), and `$mtime` reflects each file's actual modification time. `$h1` is the top-level heading in the file, and the rest of the data is frontmatter. `$contentStart` is the line number where content after the frontmatter block begins (`1` if the file has no frontmatter).
 
 ## Install
 
@@ -114,6 +117,7 @@ Output is written to stdout by default.
 ```json
 {
   "content/posts/2024-01-15-hello.md": {
+    "$contentStart": 4,
     "$date": "2024-01-15",
     "$h1": "Hello",
     "$mtime": 1705320000,

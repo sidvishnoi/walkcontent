@@ -19,6 +19,9 @@ type Entry struct {
 	MTime int64
 	// Date is the first YYYY-MM-DD date found in the file's path, if any.
 	Date string
+	// ContentStart is the 1-based line number at which content following
+	// the frontmatter block (if any) begins.
+	ContentStart int
 }
 
 func (e Entry) MarshalJSON() ([]byte, error) {
@@ -33,6 +36,7 @@ func (e Entry) MarshalJSON() ([]byte, error) {
 		out["$date"] = e.Date
 	}
 	out["$mtime"] = e.MTime
+	out["$contentStart"] = e.ContentStart
 	return json.Marshal(out)
 }
 
@@ -105,7 +109,7 @@ func buildEntry(path, cwd string) (string, Entry, error) {
 		return "", Entry{}, fmt.Errorf("statting %s: %w", path, err)
 	}
 
-	fm, h1, err := parseFrontmatterAndH1(f)
+	fm, h1, contentStart, err := parseFrontmatterAndH1(f)
 	if err != nil {
 		return "", Entry{}, fmt.Errorf("parsing %s: %w", path, err)
 	}
@@ -113,10 +117,11 @@ func buildEntry(path, cwd string) (string, Entry, error) {
 	date, _ := extractDate(key)
 
 	return key, Entry{
-		Frontmatter: fm,
-		H1:          h1,
-		MTime:       info.ModTime().Unix(),
-		Date:        date,
+		Frontmatter:  fm,
+		H1:           h1,
+		MTime:        info.ModTime().Unix(),
+		Date:         date,
+		ContentStart: contentStart,
 	}, nil
 }
 
