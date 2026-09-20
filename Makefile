@@ -9,7 +9,7 @@ build:
 	go build -trimpath -ldflags="-s -w" -o $(BINARY) $(PKG)
 
 run: build
-	$(BINARY)
+	$(BINARY) $(ARGS)
 
 test:
 	go test ./...

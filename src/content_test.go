@@ -92,3 +92,63 @@ func TestParseFrontmatterAndH1(t *testing.T) {
 		})
 	}
 }
+
+func TestParseFrontmatterAndContent(t *testing.T) {
+	tests := []struct {
+		name             string
+		in               string
+		wantFM           map[string]any
+		wantContentStart int
+		wantBody         string
+	}{
+		{
+			name:             "frontmatter then body",
+			in:               "---\ntitle: Hello\n---\n# Heading\n\nbody\n",
+			wantFM:           map[string]any{"title": "Hello"},
+			wantContentStart: 4,
+			wantBody:         "# Heading\n\nbody\n",
+		},
+		{
+			name:             "no frontmatter",
+			in:               "# Heading\n\nbody\n",
+			wantContentStart: 1,
+			wantBody:         "# Heading\n\nbody\n",
+		},
+		{
+			name:             "frontmatter with no body",
+			in:               "---\ntitle: Hello\n---\n",
+			wantFM:           map[string]any{"title": "Hello"},
+			wantContentStart: 4,
+			wantBody:         "",
+		},
+		{
+			name:             "empty file",
+			in:               "",
+			wantContentStart: 1,
+			wantBody:         "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fm, contentStart, body, err := parseFrontmatterAndContent(strings.NewReader(tt.in))
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if contentStart != tt.wantContentStart {
+				t.Errorf("contentStart = %d, want %d", contentStart, tt.wantContentStart)
+			}
+			if string(body) != tt.wantBody {
+				t.Errorf("body = %q, want %q", body, tt.wantBody)
+			}
+			if len(fm) != len(tt.wantFM) {
+				t.Fatalf("frontmatter = %#v, want %#v", fm, tt.wantFM)
+			}
+			for k, want := range tt.wantFM {
+				if got := fm[k]; got != want {
+					t.Errorf("frontmatter[%q] = %#v, want %#v", k, got, want)
+				}
+			}
+		})
+	}
+}

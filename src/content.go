@@ -2,6 +2,7 @@ package walkcontent
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"strings"
@@ -15,40 +16,61 @@ const frontmatterDelim = "---"
 
 func parseFrontmatterAndH1(r io.Reader) (map[string]any, string, int, error) {
 	lines := newLineScanner(r)
+	fm, contentStart, line, ok, err := parseFrontmatter(lines)
+	if err != nil {
+		return nil, "", 0, err
+	}
+	h1, _ := scanH1(lines, line, ok)
+	return fm, h1, contentStart, nil
+}
 
-	line, ok := lines.next()
+func parseFrontmatterAndContent(r io.Reader) (map[string]any, int, []byte, error) {
+	lines := newLineScanner(r)
+	fm, contentStart, line, ok, err := parseFrontmatter(lines)
+	if err != nil {
+		return nil, 0, nil, err
+	}
+
+	var body bytes.Buffer
+	if ok {
+		body.WriteString(line)
+	}
+	if _, err := body.ReadFrom(lines.r); err != nil {
+		return nil, 0, nil, fmt.Errorf("reading content: %w", err)
+	}
+
+	return fm, contentStart, body.Bytes(), nil
+}
+
+func parseFrontmatter(lines *lineScanner) (fm map[string]any, contentStart int, line string, ok bool, err error) {
+	line, ok = lines.next()
 	line = strings.TrimPrefix(line, string(utf8BOM))
 
-	var fm map[string]any
-	contentStart := 1
+	contentStart = 1
 	if ok && strings.TrimSpace(line) == frontmatterDelim {
 		var block strings.Builder
 		closed := false
 		for {
-			line, more := lines.next()
+			l, more := lines.next()
 			if !more {
 				break
 			}
-			if strings.TrimSpace(line) == frontmatterDelim {
+			if strings.TrimSpace(l) == frontmatterDelim {
 				closed = true
 				break
 			}
-			block.WriteString(line)
+			block.WriteString(l)
 		}
-		if !closed {
-			// no closing delimiter: this wasn't frontmatter after all, and its first
-			// line ("---") already rules out a heading directly following it
-			return nil, "", 1, nil
+		if closed {
+			if err := yaml.Unmarshal([]byte(block.String()), &fm); err != nil {
+				return nil, 0, "", false, fmt.Errorf("invalid yaml frontmatter: %w", err)
+			}
+			contentStart = lines.lineNo + 1
 		}
-		if err := yaml.Unmarshal([]byte(block.String()), &fm); err != nil {
-			return nil, "", 0, fmt.Errorf("invalid yaml frontmatter: %w", err)
-		}
-		contentStart = lines.lineNo + 1
 		line, ok = lines.next()
 	}
 
-	h1, _ := scanH1(lines, line, ok)
-	return fm, h1, contentStart, nil
+	return fm, contentStart, line, ok, nil
 }
 
 type lineScanner struct {

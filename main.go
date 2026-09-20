@@ -10,11 +10,12 @@ import (
 )
 
 const usage = `Usage:
-  walkcontent -d <directory> [ignorePattern ...] [-d <directory> [ignorePattern ...] ...] [-o <output>]
+  walkcontent -d <directory> [ignorePattern ...] [-d <directory> [ignorePattern ...] ...] [-o <output>] [--include-content]
 
   -d <directory>       a base directory to walk (repeatable)
   [ignorePattern ...]  doublestar glob patterns to ignore within that directory
   -o <output>          write JSON output to this file (default: stdout)
+  --include-content    also collect every heading and link found in each file
 
   -h, --help           show this help message`
 
@@ -42,12 +43,12 @@ func hasHelpFlag(args []string) bool {
 }
 
 func run(args []string) error {
-	dirs, output, err := parseArgs(args)
+	dirs, output, opts, err := parseArgs(args)
 	if err != nil {
 		return err
 	}
 
-	entries, err := walkcontent.Build(dirs)
+	entries, err := walkcontent.Build(dirs, opts)
 	if err != nil {
 		return err
 	}
@@ -73,7 +74,7 @@ func run(args []string) error {
 	return nil
 }
 
-func parseArgs(args []string) (dirs []walkcontent.Dir, output string, err error) {
+func parseArgs(args []string) (dirs []walkcontent.Dir, output string, opts walkcontent.Options, err error) {
 	c := &argCursor{args: args}
 	var outputSet bool
 
@@ -87,7 +88,7 @@ func parseArgs(args []string) (dirs []walkcontent.Dir, output string, err error)
 		case "-d":
 			dir, ok := c.next()
 			if !ok {
-				return nil, "", fmt.Errorf("-d requires a directory argument")
+				return nil, "", opts, fmt.Errorf("-d requires a directory argument")
 			}
 			d := walkcontent.Dir{Directory: filepath.ToSlash(dir)}
 			for !c.peekIsFlag() {
@@ -98,24 +99,27 @@ func parseArgs(args []string) (dirs []walkcontent.Dir, output string, err error)
 
 		case "-o":
 			if outputSet {
-				return nil, "", fmt.Errorf("-o specified more than once")
+				return nil, "", opts, fmt.Errorf("-o specified more than once")
 			}
 			out, ok := c.next()
 			if !ok {
-				return nil, "", fmt.Errorf("-o requires an output path argument")
+				return nil, "", opts, fmt.Errorf("-o requires an output path argument")
 			}
 			output = out
 			outputSet = true
 
+		case "--include-content":
+			opts.IncludeContent = true
+
 		default:
-			return nil, "", fmt.Errorf("unexpected argument: %s", flag)
+			return nil, "", opts, fmt.Errorf("unexpected argument: %s", flag)
 		}
 	}
 
 	if len(dirs) == 0 {
-		return nil, "", fmt.Errorf("at least one -d <directory> is required")
+		return nil, "", opts, fmt.Errorf("at least one -d <directory> is required")
 	}
-	return dirs, output, nil
+	return dirs, output, opts, nil
 }
 
 type argCursor struct {
@@ -137,5 +141,5 @@ func (c *argCursor) peekIsFlag() bool {
 }
 
 func isFlag(arg string) bool {
-	return arg == "-d" || arg == "-o"
+	return arg == "-d" || arg == "-o" || arg == "--include-content"
 }

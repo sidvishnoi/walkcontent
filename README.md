@@ -9,6 +9,7 @@ The following data is extracted from each file:
 - File modification time, `$mtime`
 - Line number where content starts (after the frontmatter block, if any), `$contentStart`
 - YAML frontmatter block, flattened into key-value pairs added directly to the output
+- With `--include-content`: every heading (`$headings`) and link (`$links`) found in the file, in document order
 
 ## Example
 
@@ -143,6 +144,32 @@ walkcontent -d content 'drafts/**' '*.tmp.md' -d blog 'unpublished/**' -o output
 # For the `./content` directory (-d), exclude files matching patterns `drafts/**` and `*.tmp.md`;
 #  and for the `./blog` directory, exclude `unpublished/**` pattern files.
 # The output is written to `output.json`
+```
+
+### Include content
+
+Pass `--include-content` to also collect every heading and link found in each file's content (in document order), as `$headings` and `$links`. This requires parsing the whole file (with `goldmark`), so it's slower than the default.
+
+Each heading/link's `text` has markdown formatting stripped (e.g. `**bold**` becomes `bold`); `rawText` holds the original markdown and is only included when it differs from `text`.
+
+```sh
+walkcontent -d content --include-content
+```
+
+```json
+{
+  "content/posts/2024-01-15-hello.md": {
+    "$contentStart": 4,
+    "$h1": "Hello",
+    "$headings": [
+      { "level": 1, "text": "Hello" },
+      { "level": 2, "text": "Section", "rawText": "**Section**" }
+    ],
+    "$links": [{ "text": "my other post", "href": "/posts/other" }],
+    "$mtime": 1705320000,
+    "title": "Hello"
+  }
+}
 ```
 
 ### Help

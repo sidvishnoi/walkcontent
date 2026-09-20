@@ -22,10 +22,14 @@ type Entry struct {
 	// ContentStart is the 1-based line number at which content following
 	// the frontmatter block (if any) begins.
 	ContentStart int
+	// Headings holds every heading in the file, in document order (requires Options.IncludeContent).
+	Headings []Heading
+	// Links holds every link in the file, in document order (requires Options.IncludeContent).
+	Links []Link
 }
 
 func (e Entry) MarshalJSON() ([]byte, error) {
-	out := make(map[string]any, len(e.Frontmatter)+3)
+	out := make(map[string]any, len(e.Frontmatter)+5)
 	for k, v := range e.Frontmatter {
 		out[k] = v
 	}
@@ -37,10 +41,23 @@ func (e Entry) MarshalJSON() ([]byte, error) {
 	}
 	out["$mtime"] = e.MTime
 	out["$contentStart"] = e.ContentStart
+	if len(e.Headings) > 0 {
+		out["$headings"] = e.Headings
+	}
+	if len(e.Links) > 0 {
+		out["$links"] = e.Links
+	}
 	return json.Marshal(out)
 }
 
-func Build(dirs []Dir) (map[string]Entry, error) {
+type Options struct {
+	// Additionally collect every heading and link found in each file's content.
+	// This requires reading and parsing the whole file, rather than just enough
+	// to find the frontmatter and first heading.
+	IncludeContent bool
+}
+
+func Build(dirs []Dir, opts Options) (map[string]Entry, error) {
 	norm, err := normalizeDirs(dirs)
 	if err != nil {
 		return nil, err
@@ -71,7 +88,7 @@ func Build(dirs []Dir) (map[string]Entry, error) {
 		go func(i int, f string) {
 			defer wg.Done()
 			defer func() { <-sem }()
-			key, entry, err := buildEntry(f, cwd)
+			key, entry, err := buildEntry(f, cwd, opts)
 			results[i] = keyedEntry{key: key, entry: entry}
 			errs[i] = err
 		}(i, f)
@@ -91,7 +108,7 @@ func Build(dirs []Dir) (map[string]Entry, error) {
 	return out, nil
 }
 
-func buildEntry(path, cwd string) (string, Entry, error) {
+func buildEntry(path, cwd string, opts Options) (string, Entry, error) {
 	rel, err := filepath.Rel(cwd, path)
 	if err != nil {
 		return "", Entry{}, fmt.Errorf("resolving relative path for %s: %w", path, err)
@@ -109,9 +126,29 @@ func buildEntry(path, cwd string) (string, Entry, error) {
 		return "", Entry{}, fmt.Errorf("statting %s: %w", path, err)
 	}
 
-	fm, h1, contentStart, err := parseFrontmatterAndH1(f)
-	if err != nil {
-		return "", Entry{}, fmt.Errorf("parsing %s: %w", path, err)
+	var fm map[string]any
+	var h1 string
+	var contentStart int
+	var headings []Heading
+	var links []Link
+	if opts.IncludeContent {
+		var body []byte
+		fm, contentStart, body, err = parseFrontmatterAndContent(f)
+		if err != nil {
+			return "", Entry{}, fmt.Errorf("parsing %s: %w", path, err)
+		}
+		headings, links = parseHeadingsAndLinks(body)
+		for _, h := range headings {
+			if h.Level == 1 {
+				h1 = h.Text
+				break
+			}
+		}
+	} else {
+		fm, h1, contentStart, err = parseFrontmatterAndH1(f)
+		if err != nil {
+			return "", Entry{}, fmt.Errorf("parsing %s: %w", path, err)
+		}
 	}
 
 	date, _ := extractDate(key)
@@ -122,6 +159,8 @@ func buildEntry(path, cwd string) (string, Entry, error) {
 		MTime:        info.ModTime().Unix(),
 		Date:         date,
 		ContentStart: contentStart,
+		Headings:     headings,
+		Links:        links,
 	}, nil
 }
 

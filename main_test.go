@@ -14,12 +14,19 @@ func TestParseArgs(t *testing.T) {
 		args       []string
 		wantDirs   []walkcontent.Dir
 		wantOutput string
+		wantOpts   walkcontent.Options
 		wantErr    bool
 	}{
 		{
 			name:     "single dir no patterns",
 			args:     []string{"-d", "content"},
 			wantDirs: []walkcontent.Dir{{Directory: "content"}},
+		},
+		{
+			name:     "include-content flag",
+			args:     []string{"-d", "content", "--include-content"},
+			wantDirs: []walkcontent.Dir{{Directory: "content"}},
+			wantOpts: walkcontent.Options{IncludeContent: true},
 		},
 		{
 			name: "single dir with patterns",
@@ -70,7 +77,7 @@ func TestParseArgs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			dirs, output, err := parseArgs(tt.args)
+			dirs, output, opts, err := parseArgs(tt.args)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("err = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -83,6 +90,9 @@ func TestParseArgs(t *testing.T) {
 			if output != tt.wantOutput {
 				t.Errorf("output = %q, want %q", output, tt.wantOutput)
 			}
+			if opts != tt.wantOpts {
+				t.Errorf("opts = %#v, want %#v", opts, tt.wantOpts)
+			}
 		})
 	}
 }
@@ -92,7 +102,7 @@ func TestParseArgsConvertsWindowsPathsToSlash(t *testing.T) {
 		t.Skip("path separator conversion only applies on windows")
 	}
 
-	dirs, _, err := parseArgs([]string{"-d", `content\blog`, `drafts\**`})
+	dirs, _, _, err := parseArgs([]string{"-d", `content\blog`, `drafts\**`})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
