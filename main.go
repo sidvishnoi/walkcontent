@@ -62,6 +62,11 @@ func run(args []string) error {
 		_, err := os.Stdout.Write(data)
 		return err
 	}
+	if dir := filepath.Dir(output); dir != "." {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return fmt.Errorf("creating directory for %s: %w", output, err)
+		}
+	}
 	if err := os.WriteFile(output, data, 0o644); err != nil {
 		return fmt.Errorf("writing %s: %w", output, err)
 	}
