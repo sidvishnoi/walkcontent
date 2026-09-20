@@ -1,0 +1,33 @@
+name: CI
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    name: Lint & Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with: { go-version: stable }
+
+      - uses: dominikh/staticcheck-action@v1.4.1
+        with: { install-go: false }
+
+      - uses: golangci/golangci-lint-action@v9
+        with: { version: v2.13 }
+
+      - run: make fmt
+
+      - name: Check for unformatted files
+        run: git diff --exit-code
+
+      - run: make vet
+
+      - run: make test
